@@ -1,18 +1,94 @@
 # Imports
 from kelp_coverage_estimator import KelpCoverageEstimator
+import pandas as pd 
+# import matplotlib.pyplot as plt
+# import matplotlib.animation as animation
+# from IPython.display import HTML
+from os import listdir
+import matplotlib
+# import os
+import imageio
 
-# Setup
-path_to_image = 'images/input.jpg'
 
-# Process
+# Read in drone image metadata
+df = pd.read_csv('data/drone_image_metadata.csv')
+latitude_array = df['latitude'].values
+longitude_array = df['longitude'].values
+meters_per_pixel_array = df['meters_per_pixel'].values
+
+# Get a list of all the images in the folder
+# root = getcwd()
+image_folder = 'images' 
+image_list = listdir(image_folder)
+jpg_drone_images = sorted(\
+                        [image for image in image_list if \
+                        image.lower().endswith('.jpg') and \
+                        not image.lower().startswith('output_')])
+
+# Create Kelp Coverage Estimator
 kce = KelpCoverageEstimator()
 
-image = kce.preprocess_image(path_to_image)
-# kce.save_image(image, 'test3')
+# Process drone images
+image_list = []
+iterator = iter( zip(jpg_drone_images, latitude_array, longitude_array, meters_per_pixel_array) )
+for jpg_drone_image, latitude, longitude, meter_per_pixel in iterator:
+    print(f'\nProcessing: {jpg_drone_image[0:-4]}')
+    path_to_image = 'images/' + jpg_drone_image
+    image = kce.preprocess_image(path_to_image)
+    image = kce.produce_coverage_map(image)
+    image = kce.insert_covergage_map_into_enclosing_image(image, (latitude, longitude), meter_per_pixel)
 
-coverage_map = kce.produce_coverage_map(image)
-kce.plot_coverage_map(coverage_map)
 
-# for a in attributes:
-#     value = getattr(kce, a)
-#     print(f"{a}: {value}")
+
+
+#############################################################################
+# Create animations
+
+# # Directory containing your .jpg files
+# output_file = 'kelp_coverage_over_time.gif'
+
+# # Create a list of image files
+# image_list = listdir(image_folder)
+# # print(image_list)
+# output_image_paths = sorted(\
+#                         [image for image in image_list if \
+#                         image.lower().endswith('.jpg') and \
+#                         image.lower().startswith('output_')])
+
+# # print(output_image_paths)
+
+# # Create the animation
+# with imageio.get_writer(output_file, duration=10) as writer:
+#     for img_path in output_image_paths:
+#         image = imageio.imread(image_folder + '/' + img_path)
+#         writer.append_data(image)
+
+
+
+
+
+
+
+
+# # Create an animation from the list of figure objects
+# # fig = plt.figure(figsize=(32, 44))  # Specify the size with the figsize parameter
+# ani = animation.ArtistAnimation(figure_list[0], figure_list, interval=100, blit=True)
+
+# # Save the animation as a GIF
+# ani.save('kelp_coverage_animation.gif', writer='pillow')
+
+# # Display the animation as an HTML element
+# HTML(ani.to_jshtml())
+
+# # Save the animation as a GIF
+# ani.save('kelp_coverage_animation.gif', writer='pillow')
+
+# # Display the animation as an HTML element
+# HTML(ani.to_jshtml())
+
+
+
+
+    
+
+
