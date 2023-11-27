@@ -7,6 +7,9 @@ from os.path import join
 from os import getcwd, getenv
 import matplotlib.pyplot as plt
 from PIL import Image
+from datetime import datetime
+from matplotlib.colors import LinearSegmentedColormap
+
 
 
 ############################################################################################
@@ -21,7 +24,9 @@ INTENSITY_LOW = int(getenv('INTENSITY_LOW'))
 INTENSITY_HIGH = int(getenv('INTENSITY_HIGH'))
 
 # Length of grid blocks overlayed (within which percentage coverage is computed)
-scale = int(getenv('GRID_BLOCK_LENGTH'))
+scale = int(getenv('GRID_BLOCK_PIXEL_LENGTH'))
+average_meters_per_pixel_ratio = 0.112424448 # CALCULATE FROM DRONE IMAGE METADATA - average because altitude changes (meters per pixel)
+grid_block_meters_length = scale * average_meters_per_pixel_ratio
 
 # Enclosing image dimensions
 ENCLOSING_IMAGE_PIXEL_WIDTH = int(getenv('ENCLOSING_IMAGE_PIXEL_WIDTH'))
@@ -36,8 +41,13 @@ OUTER_TO_INNER_PIXEL_DIST_ROW = (ENCLOSING_IMAGE_PIXEL_WIDTH - 3000)/2
 # print(OUTER_TO_INNER_PIXEL_DIST_COLUMN, OUTER_TO_INNER_PIXEL_DIST_ROW)
 
 
+
 # Degrees per meter ratio
 DEGREES_PER_METER = float(getenv("DEGREES_PER_METER"))
+
+# Harvest efficiency
+HARVEST_EFFICIENCY = float(getenv('HARVEST_EFFICIENCY'))
+
 
 ############################################################################################
 '''Build the coverage estimator class'''
@@ -78,19 +88,14 @@ class KelpCoverageEstimator():
         return image
 
 
-    # def save_cv2_image(self, image, name):
-    #     cwd = getcwd()
-    #     output_image_name = name + '.jpg'
-    #     path_to_output_image = join(cwd, 'images', output_image_name)
-    #     jpeg_params = [cv2.IMWRITE_JPEG_QUALITY, 100]
-    #     cv2.imwrite(path_to_output_image, image, jpeg_params)
-
-
     def produce_coverage_map(self, image):
         ''' 
-        Input: binary image, scaling factor
-        Returns: grayscale image, reduced by X (scale), where each pixel value represents the 
-        percentage coverage of the corresponding X-by-X region of the input image
+        Input: 
+            Binary image
+            Scaling factor
+        Returns: 
+            Grayscale image, reduced by X (scale), where each pixel value represents the 
+            percentage coverage of the corresponding X-by-X region of the input image.
         '''
     
         # Get the dimensions of the binary image
@@ -120,14 +125,18 @@ class KelpCoverageEstimator():
         return coverage_map
     
 
-    def plot_coverage_map(self, coverage_map):
-        # Plot the coverage map with a color bar
-        plt.figure()
-        plt.imshow(coverage_map, cmap='viridis', vmin=0, vmax=100)
-        plt.colorbar(label='Coverage Percentage')
-        plt.title('Biomass and Percentage Kelp Coverage per [] region')
-        plt.show()
-        # plt.savefig('images/' + 'output_' + name)
+    def find_bottom_left_coordinate(image_shape, centre, meter_per_pixel):
+        '''
+        Input: 
+            Centre coordinate of image (latitude, longitude)
+            Meter to pixel ratio
+        Returns: 
+            The (latitude, longitude) of the bottom left corner of the image, 
+            used to translate to UTM coordinates
+            '''
+        Delta_x = int(image_shape[0]/2)        
+        Delta_y = int(image_shape[1]/2)
+        pass
 
 
     def plot_difference_map(self, difference_map):
@@ -137,43 +146,67 @@ class KelpCoverageEstimator():
         plt.colorbar(label='Absolute difference')
         plt.title('Relative difference in percentage Kelp coverage per $1m^2$ region') # Link to grid block length 
         plt.show()
+        pass
+
+ 
 
 
-    def save_figure(self, array, name, date):
+    def create_figure(self, image_array, name, date, save=False):
 
-        # Plot the coverage map with a color bar
+        # Create new figure
         fig = plt.figure()
 
-        # Set the extent to change the visual scale
-        extent = [0, 496, 0, 360]
-        plt.imshow(array, cmap='viridis', vmin=0, vmax=100, extent=extent)
+        # Define the custom colormap colors
+        light_blue = (0.95, 0.98, 1.0)   # Lighter blue (i.e. Ocean) # (0.85, 0.95, 1.0) 
+        earthy_green = (170/255, 182/255, 133/255) # (136/255, 160/255, 146/255) #  # (0.4, 0.22, 0.141)  # More brownish green (i.e. Kelp)
 
-        # plt.annotate('', xy=(array.shape[1] - 50, array.shape[0] - 50), xytext=(array.shape[1] - 50 - 35, array.shape[0] - 50),
-        #              arrowprops=dict(facecolor='white', edgecolor='white', arrowstyle='-', linewidth=1))
+        # Create a custom colormap
+        cmap_colors = [light_blue, earthy_green]
+        custom_cmap = LinearSegmentedColormap.from_list('custom_cmap', cmap_colors, N=256)
+
+        # Set the extent to change the visual scale
+        extent = [0, 496, 0, 360] # Automate extent calculation
+        plt.imshow(image_array, cmap=custom_cmap, vmin=0, vmax=100, extent=extent)
 
         # Add labels for x and y axes
         plt.xlabel('Meters')
         plt.ylabel('Meters')
     
+        # Add colour bar
         plt.colorbar(label='Coverage (%)', shrink=0.8)
 
-        average_meters_per_pixel_ratio = 0.112424448 # CALCULATE FROM DRONE IMAGE METADATA - average because altitude changes
-
-        grid_block_length = int(round(scale * average_meters_per_pixel_ratio, 0))
-        date_formated = date[4:6] + '-' + date[0:4]
-        plt.title( f'{date_formated}')
-        plt.suptitle(f'Kelp percentage coverage per {grid_block_length}$m^2$ region', y=0.90, fontsize=16, color='darkblue')
+        # Scale & grid
+        grid_block_meters_length_rounded = int(round(grid_block_meters_length, 0))
         plt.grid(True)
+        
+        # Date
+        date = date[4:6] + '-' + date[0:4]
+        date = datetime.strptime(date, "%m-%Y")
+        date = date.strftime("%B %Y") # Format the datetime object as "Month Year"
+
+        # Get total biomass
+        total_biomass = self.get_total_biomass_from_coverage_map(image_array)
+
+        # plt.suptitle(f'', y=0.90, fontsize=12, color='darkblue')
+        plt.title( f'Kelp Biomass Estimation - {date}', fontsize=12, loc='left', color=(2/255, 91/255, 114/255), pad=5)
+        caption_text = f'Percentage canopy coverage area and biomass per {grid_block_meters_length_rounded}$m^2$ (pixel) region\n\
+        Total available biomass {round(total_biomass/1000, 1)} (tonnes)'
+        plt.text(0, -0.2, caption_text, ha='left', va='center', transform=plt.gca().transAxes, fontsize=8)
 
         # Save image
-        plt.savefig('images/' + 'output_' + name, dpi=300) 
+        if save:
+            plt.savefig('images/' + name, dpi=1000) 
+        
+        return fig
 
 
 
     def get_distance_between_centres(self, inner_centre_lat, inner_centre_lon):
         '''
-        Input: spatial co-ordinates of inner image centre as tuple (longitude, latitude)
-        Returns: spatial distance between inner image centre and enclosing image centre
+        Input: 
+            spatial co-ordinates of inner image centre as tuple (longitude, latitude)
+        Returns: 
+            spatial distance between inner image centre and enclosing image centre
         '''
         Delta_lat = inner_centre_lat - ENCLOSING_IMAGE_CENTRE_LAT
         Delta_lon = inner_centre_lon - ENCLOSING_IMAGE_CENTRE_LON
@@ -186,14 +219,50 @@ class KelpCoverageEstimator():
         Input: 
             length in degrees (approximated as Euclidean distance)
             meters-per-pixel ratio of the ORIGINAL image
-            scale factor (how many pixels of cover map image correspond to 1 pixel in original)
+            # scale factor (how many pixels of cover map image correspond to 1 pixel in original)
         Returns: 
-            Approx. lengh in number of pixels
+            Approx. length in number of pixels
         '''
         pixel_length = degree_length / DEGREES_PER_METER / meters_per_pixel
-
         return pixel_length
+    
 
+    def convert_length_from_pixels_to_degrees(self, pixel_length, meters_per_pixel):
+        ''' 
+        Input: 
+            length in pixels
+            meters-per-pixel ratio of the ORIGINAL image
+            # scale factor (how many pixels of cover map image correspond to 1 pixel in original)
+        Returns: 
+            Approx. length in degrees
+        '''
+        degree_length = pixel_length * DEGREES_PER_METER * meters_per_pixel
+        return degree_length
+
+
+    def get_total_biomass_from_coverage_map(self, coverage_map):
+        '''
+        Input: coverage_map
+        Parameters: scale, average_meters_per_pixel_ratio
+        Returns: total biomass of coverage area
+        '''
+        # Extract image dimensions (pixels)
+        pixel_length = coverage_map.shape[0]
+        pixel_width = coverage_map.shape[1]
+
+        # Convert percentage coverage map to [total effective harvest efficiency] using standard harvest efficiency
+        total_effective_harvest_efficiency = np.sum(coverage_map/100 * HARVEST_EFFICIENCY) / (pixel_length * pixel_width ) # (kg/m^2)
+        print( '\tTotal effective harvest efficiency', round(total_effective_harvest_efficiency,2), 'kg/m^2' )
+
+        # Total area of image
+        total_area = ( pixel_length * grid_block_meters_length) * (pixel_width * grid_block_meters_length)
+        print('\tTotal area:', round(total_area, 0), 'm^2')
+
+        # Total biomass
+        total_biomass = total_effective_harvest_efficiency * total_area
+        print('\tTotal available biomass', round(total_biomass, 0), 'kg')
+        return total_biomass
+    
 
     def insert_covergage_map_into_enclosing_image(self, coverage_map, centre, meters_per_pixel):
         '''
@@ -239,10 +308,10 @@ class KelpCoverageEstimator():
         return enclosing_image
 
 
-    def get_coverage_differences(self, image_arrays_list):
+    def produce_changes_map(self, image_arrays_list):
 
         # Initialize the list to store the figures
-        difference_maps = []
+        changes = []
 
         # Loop through each pair of consecutive images
         for i in range(1, len(image_arrays_list)):
@@ -256,12 +325,12 @@ class KelpCoverageEstimator():
             image2 = image2[:min_shape[0], :min_shape[1]]
 
             # Compute pixel-wise absolute difference
-            difference_map = ((image2-image2)/image1)*100
+            change_map = ((image2-image2)/image1)*100
 
             # Append the figure to the list
-            difference_maps.append(difference_map)
+            changes.append(change_map)
 
-        return difference_maps
+        return changes
         
 
 
