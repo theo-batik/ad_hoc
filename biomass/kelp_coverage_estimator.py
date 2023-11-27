@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from datetime import datetime
 from matplotlib.colors import LinearSegmentedColormap
-
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 ############################################################################################
@@ -40,7 +40,9 @@ OUTER_TO_INNER_PIXEL_DIST_COLUMN = (ENCLOSING_IMAGE_PIXEL_LENGTH - 4000)/2
 OUTER_TO_INNER_PIXEL_DIST_ROW = (ENCLOSING_IMAGE_PIXEL_WIDTH - 3000)/2
 # print(OUTER_TO_INNER_PIXEL_DIST_COLUMN, OUTER_TO_INNER_PIXEL_DIST_ROW)
 
-
+# RGB Kelp Colour 
+kelp_colour = (170/255, 182/255, 133/255)
+blue_colour = (2/255, 91/255, 114/255)
 
 # Degrees per meter ratio
 DEGREES_PER_METER = float(getenv("DEGREES_PER_METER"))
@@ -148,36 +150,68 @@ class KelpCoverageEstimator():
         plt.show()
         pass
 
- 
+    def create_bar_chart_for_total_biomasses(self, biomasses, dates, name, save=True):
+        # Convert date strings to datetime objects
+        dates = [date[4:6] + '-' + date[0:4] for date in dates]
+        dates = [datetime.strptime(date, "%m-%Y") for date in dates]
+        dates = [date.strftime("%B %Y") for date in dates]  # Format the datetime object as "Month Year"
+
+        # Create a bar graph
+        fig, ax = plt.subplots()
+        bars = ax.bar(dates, biomasses, color=kelp_colour)
+
+        # Customize the plot
+        plt.title('Kelp Biomass Estimation: total available by month', fontsize=12, loc='left', color=blue_colour, pad=5)
+        plt.xlabel('Month')
+        plt.ylabel('Biomass (tonnes)')
+        plt.xticks(rotation=45, ha='right')  # Rotate x-axis labels for better readability
+
+        # Add values on top of the bars
+        for bar, biomass in zip(bars, biomasses):
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width() / 2, height, f'{biomass:.2f}', ha='center', va='bottom', fontsize=8)
+
+        plt.tight_layout()  # Adjust layout for better appearance
+
+        # Save image
+        name = name + '.jpg'
+        if save:
+            plt.savefig('images/' + name, dpi=1500)
 
 
-    def create_figure(self, image_array, name, date, save=False):
+    def create_coverage_map_figure(self, image_array, name, date, save=False):
 
         # Create new figure
         fig = plt.figure()
 
         # Define the custom colormap colors
         light_blue = (0.95, 0.98, 1.0)   # Lighter blue (i.e. Ocean) # (0.85, 0.95, 1.0) 
-        earthy_green = (170/255, 182/255, 133/255) # (136/255, 160/255, 146/255) #  # (0.4, 0.22, 0.141)  # More brownish green (i.e. Kelp)
 
         # Create a custom colormap
-        cmap_colors = [light_blue, earthy_green]
+        cmap_colors = [light_blue, kelp_colour] # (136/255, 160/255, 146/255) #  # (0.4, 0.22, 0.141)  # More brownish green (i.e. Kelp)
         custom_cmap = LinearSegmentedColormap.from_list('custom_cmap', cmap_colors, N=256)
 
         # Set the extent to change the visual scale
         extent = [0, 496, 0, 360] # Automate extent calculation
-        plt.imshow(image_array, cmap=custom_cmap, vmin=0, vmax=100, extent=extent)
+        im = plt.imshow(image_array, cmap=custom_cmap, vmin=0, vmax=100, extent=extent)
 
         # Add labels for x and y axes
         plt.xlabel('Meters')
         plt.ylabel('Meters')
-    
-        # Add colour bar
-        plt.colorbar(label='Coverage (%)', shrink=0.8)
-
+        
         # Scale & grid
         grid_block_meters_length_rounded = int(round(grid_block_meters_length, 0))
         plt.grid(True)
+    
+        # Add the colorbars
+        cbar1 = plt.colorbar(im, label=f'Percentage coverage (%)*', shrink=0.6)
+        cbar1.set_ticklabels(['0%', '20%', '40%', '60%', '80%', '100%'])
+        cbar2 = plt.colorbar(im, ax=plt.gca(), label=f'Biomass (kg)*', shrink=0.6, pad=0.05)
+
+        # Manually set colorbar 2 ticks
+        pixel_area = (scale * average_meters_per_pixel_ratio)**2
+        max_biomass = HARVEST_EFFICIENCY * pixel_area
+        cbar2.set_ticklabels( np.around(np.linspace(0, max_biomass, 50), decimals=1) )
         
         # Date
         date = date[4:6] + '-' + date[0:4]
@@ -187,15 +221,17 @@ class KelpCoverageEstimator():
         # Get total biomass
         total_biomass = self.get_total_biomass_from_coverage_map(image_array)
 
-        # plt.suptitle(f'', y=0.90, fontsize=12, color='darkblue')
-        plt.title( f'Kelp Biomass Estimation - {date}', fontsize=12, loc='left', color=(2/255, 91/255, 114/255), pad=5)
-        caption_text = f'Percentage canopy coverage area and biomass per {grid_block_meters_length_rounded}$m^2$ (pixel) region\n\
-        Total available biomass {round(total_biomass/1000, 1)} (tonnes)'
-        plt.text(0, -0.2, caption_text, ha='left', va='center', transform=plt.gca().transAxes, fontsize=8)
+        plt.title( f'Kelp Biomass Estimation - {date}', fontsize=12, loc='left', color=blue_colour, pad=5)
+        footnote_1 = f'Total biomass available: {round(total_biomass, 5)} (tonnes)'
+        footnote_2 = f'*Per ${grid_block_meters_length_rounded}m^2$ (pixel) region based on corresponding proportion of visible canopy area\n \
+            and a harvesting efficiency of {HARVEST_EFFICIENCY} ($kg/m^2$).'
+        plt.text(0, -0.26, footnote_1, ha='left', va='center', transform=plt.gca().transAxes, fontsize=8)
+        plt.text(0, -0.34, footnote_2, ha='left', va='center', transform=plt.gca().transAxes, fontsize=8)
+
 
         # Save image
         if save:
-            plt.savefig('images/' + name, dpi=1000) 
+            plt.savefig('images/' + name, dpi=1500) 
         
         return fig
 
@@ -260,7 +296,8 @@ class KelpCoverageEstimator():
 
         # Total biomass
         total_biomass = total_effective_harvest_efficiency * total_area
-        print('\tTotal available biomass', round(total_biomass, 0), 'kg')
+        total_biomass = total_biomass / 1000 # convert to tonnes
+        print('\tTotal available biomass', round(total_biomass, 1), 'tonnes')
         return total_biomass
     
 
