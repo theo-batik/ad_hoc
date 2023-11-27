@@ -6,6 +6,8 @@ import numpy as np
 from os.path import join
 from os import getcwd, getenv
 import matplotlib.pyplot as plt
+from PIL import Image
+
 
 ############################################################################################
 ''' Environment variables '''
@@ -128,6 +130,15 @@ class KelpCoverageEstimator():
         # plt.savefig('images/' + 'output_' + name)
 
 
+    def plot_difference_map(self, difference_map):
+        # Plot the coverage difference map with a color bar
+        plt.figure()
+        plt.imshow(difference_map, cmap='viridis') #  vmin=0, vmax=100
+        plt.colorbar(label='Absolute difference')
+        plt.title('Relative difference in percentage Kelp coverage per $1m^2$ region') # Link to grid block length 
+        plt.show()
+
+
     def save_figure(self, array, name, date):
 
         # Plot the coverage map with a color bar
@@ -184,12 +195,6 @@ class KelpCoverageEstimator():
         return pixel_length
 
 
-        # 1) Get distance spatial between centre points ( Del lon, Del lat) 
-    # 2) Convert to pixel distance -> (Del pix_y, Del pix_x)
-    # 3) Add (+600, )
-    # 4) Insert inner image at (Del pix_y, Del pix_x) 
-
-
     def insert_covergage_map_into_enclosing_image(self, coverage_map, centre, meters_per_pixel):
         '''
         Input:
@@ -234,9 +239,29 @@ class KelpCoverageEstimator():
         return enclosing_image
 
 
-    def compute_coverage_differences(self, image_list):
-        differences = np.e
+    def get_coverage_differences(self, image_arrays_list):
 
+        # Initialize the list to store the figures
+        difference_maps = []
+
+        # Loop through each pair of consecutive images
+        for i in range(1, len(image_arrays_list)):
+            # Get images from the list
+            image1 = image_arrays_list[i - 1]
+            image2 = image_arrays_list[i]
+
+            # Ensure images have the same shape
+            min_shape = [min(image1.shape[i], image2.shape[i]) for i in range(2)]
+            image1 = image1[:min_shape[0], :min_shape[1]]
+            image2 = image2[:min_shape[0], :min_shape[1]]
+
+            # Compute pixel-wise absolute difference
+            difference_map = ((image2-image2)/image1)*100
+
+            # Append the figure to the list
+            difference_maps.append(difference_map)
+
+        return difference_maps
         
 
 

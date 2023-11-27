@@ -5,9 +5,10 @@ import pandas as pd
 # import matplotlib.animation as animation
 # from IPython.display import HTML
 from os import listdir
-import matplotlib
+# import matplotlib
 # import os
 import imageio
+import numpy as np
 
 
 # Read in drone image metadata
@@ -28,8 +29,9 @@ jpg_drone_images = sorted(\
 # Create Kelp Coverage Estimator
 kce = KelpCoverageEstimator()
 
-# Process drone images
+# Get the percentage coverage area from the raw drone images
 image_list = []
+coverage_data = []
 iterator = iter( zip(jpg_drone_images, latitude_array, longitude_array, meters_per_pixel_array) )
 for jpg_drone_image, latitude, longitude, meter_per_pixel in iterator:
     print(f'\nProcessing: {jpg_drone_image[0:-4]}')
@@ -37,8 +39,21 @@ for jpg_drone_image, latitude, longitude, meter_per_pixel in iterator:
     image = kce.preprocess_image(path_to_image)
     image = kce.produce_coverage_map(image)
     image = kce.insert_covergage_map_into_enclosing_image(image, (latitude, longitude), meter_per_pixel)
+    coverage_data.append(image)
 
 
+# Get the image-by-images changes
+
+difference_maps = kce.get_coverage_differences(coverage_data)
+
+
+for dm in difference_maps:
+    print(dm.shape)
+    print('max', dm.max)
+    print('min', dm.min)
+
+    kce.plot_difference_map(dm)
+    
 
 
 #############################################################################
@@ -47,15 +62,15 @@ for jpg_drone_image, latitude, longitude, meter_per_pixel in iterator:
 # # Directory containing your .jpg files
 # output_file = 'kelp_coverage_over_time.gif'
 
-# # Create a list of image files
+# # # Create a list of image files
 # image_list = listdir(image_folder)
-# # print(image_list)
+# # # print(image_list)
 # output_image_paths = sorted(\
 #                         [image for image in image_list if \
 #                         image.lower().endswith('.jpg') and \
 #                         image.lower().startswith('output_')])
 
-# # print(output_image_paths)
+# print(output_image_paths)
 
 # # Create the animation
 # with imageio.get_writer(output_file, duration=10) as writer:
