@@ -74,14 +74,11 @@ kce.create_bar_chart_for_total_biomasses(biomasses, date_strings, 'output_bar_ch
 ################################################################################################################
 # Get the image-by-images changes
 
-difference_maps = kce.get_coverage_differences(coverage_maps)
+change_maps = kce.produce_change_maps(coverage_maps)
 
-for dm in difference_maps:
-    print(dm.shape)
-    print('max', dm.max)
-    print('min', dm.min)
+for i, dm in enumerate(change_maps):
+    kce.plot_difference_map(dm, name=str(i))
 
-    kce.plot_difference_map(dm)
     
 
 

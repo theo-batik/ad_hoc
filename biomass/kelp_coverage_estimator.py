@@ -141,14 +141,34 @@ class KelpCoverageEstimator():
         pass
 
 
-    def plot_difference_map(self, difference_map):
+    def plot_difference_map(self, difference_map, name, save=True):
         # Plot the coverage difference map with a color bar
         plt.figure()
-        plt.imshow(difference_map, cmap='viridis') #  vmin=0, vmax=100
-        plt.colorbar(label='Absolute difference')
-        plt.title('Relative difference in percentage Kelp coverage per $1m^2$ region') # Link to grid block length 
-        plt.show()
-        pass
+
+        # Define a custom colormap from red to green
+        cmap_colors = [(1, 0, 0), (0, 1, 0)]  # Red to green
+        custom_cmap = LinearSegmentedColormap.from_list('custom_cmap', cmap_colors, N=50)
+
+        # Find min and max difference
+        min_diff = np.min(difference_map) * 100
+        max_diff = np.max(difference_map) * 100
+        print('min_diff', min_diff)
+        print('max_diff', max_diff)
+
+        # Axes
+        plt.xlabel('Meters')
+        plt.ylabel('Meters')
+    
+        extent = [0, 496, 0, 360]
+        plt.imshow(difference_map, cmap=custom_cmap, vmin=min_diff, vmax=max_diff, extent=extent)
+        plt.colorbar(label='Relative difference (%)')
+        grid_block_meters_length_rounded = int(round(grid_block_meters_length, 0))
+        plt.title(f'Biomass changes per ${grid_block_meters_length_rounded}m^2$ region') # Link to grid block length 
+        
+        if save:
+            plt.savefig('images/' + 'output_' + name + '.jpg', dpi=1500)
+        
+
 
     def create_bar_chart_for_total_biomasses(self, biomasses, dates, name, save=True):
         # Convert date strings to datetime objects
@@ -234,7 +254,6 @@ class KelpCoverageEstimator():
             plt.savefig('images/' + name, dpi=1500) 
         
         return fig
-
 
 
     def get_distance_between_centres(self, inner_centre_lat, inner_centre_lon):
@@ -345,7 +364,7 @@ class KelpCoverageEstimator():
         return enclosing_image
 
 
-    def produce_changes_map(self, image_arrays_list):
+    def produce_change_maps(self, image_arrays_list):
 
         # Initialize the list to store the figures
         changes = []
@@ -362,7 +381,7 @@ class KelpCoverageEstimator():
             image2 = image2[:min_shape[0], :min_shape[1]]
 
             # Compute pixel-wise absolute difference
-            change_map = ((image2-image2)/image1)*100
+            change_map = np.divide( np.subtract(image1, image2), np.where(image1 != 0, image1, np.nan))
 
             # Append the figure to the list
             changes.append(change_map)
