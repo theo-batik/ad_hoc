@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "03ccd487d470b027701e07b427eab0e8ab159be85ecb523db07412880612c805"
+            "sha256": "39f4689429f37e24ef5df107cac782a05273da240afa6888532a94b1d79274bc"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -433,11 +433,11 @@
         },
         "pexpect": {
             "hashes": [
-                "sha256:0b48a55dcb3c05f3329815901ea4fc1537514d6ba867a152b581d69ae3710937",
-                "sha256:fc65a43959d153d0114afe13997d439c22823a27cefceb5ff35c2178c6784c0c"
+                "sha256:7236d1e080e4936be2dc3e326cec0af72acf9212a7e1d060210e70a47e253523",
+                "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f"
             ],
             "markers": "sys_platform != 'win32'",
-            "version": "==4.8.0"
+            "version": "==4.9.0"
         },
         "pillow": {
             "hashes": [
@@ -496,7 +496,7 @@
                 "sha256:fa1d323703cfdac2036af05191b969b910d8f115cf53093125e4058f62012c9a",
                 "sha256:fe1e26e1ffc38be097f0ba1d0d07fcade2bcfd1d023cda5b29935ae8052bd793"
             ],
-            "markers": "python_version >= '3.8'",
+            "index": "pypi",
             "version": "==10.1.0"
         },
         "prompt-toolkit": {

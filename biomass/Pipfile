@@ -10,6 +10,7 @@ matplotlib = "*"
 pandas = "*"
 ipython = "*"
 imageio = "*"
+pillow = "*"
 
 [dev-packages]
 
