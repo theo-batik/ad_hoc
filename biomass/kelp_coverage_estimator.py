@@ -25,7 +25,7 @@ INTENSITY_HIGH = int(getenv('INTENSITY_HIGH'))
 
 # Length of grid blocks overlayed (within which percentage coverage is computed)
 scale = int(getenv('GRID_BLOCK_PIXEL_LENGTH'))
-average_meters_per_pixel_ratio = 0.112424448 # CALCULATE FROM DRONE IMAGE METADATA - average because altitude changes (meters per pixel)
+average_meters_per_pixel_ratio = 0.108048485 #0.07963395 # 0.081945478 #0.112424448 # CALCULATE FROM DRONE IMAGE METADATA - average because altitude changes (meters per pixel)
 grid_block_meters_length = scale * average_meters_per_pixel_ratio
 
 # Enclosing image dimensions
@@ -101,27 +101,34 @@ class KelpCoverageEstimator():
         '''
     
         # Get the dimensions of the binary image
+        
+        # image = image[130:2130, 0:4000] # temp fix for 202312!!
         height, width = image.shape
-
         # Calculate the number of rows and columns in the reduced image
-        reduced_rows = height // scale
-        reduced_cols = width // scale
+        reduced_rows = int(height / scale)
+        reduced_cols = int(width / scale)
         region_area = scale * scale
 
         # Create an empty grayscale image for coverage with reduced dimensions
         coverage_map = np.zeros((reduced_rows, reduced_cols), dtype=np.uint8)
 
+        # Debug
+        print('scale',scale)
+        print('width', width, 'height', height)
+        print('reduced_cols',reduced_cols)
+        print('reduced_rows',reduced_rows)
+
         # Iterate over scale-by-scale regions in the binary image
-        for row in range(0, height, scale):
-            for col in range(0, width, scale):
+        for row in range(0, reduced_rows*scale, scale): # Recontruct image dimensions from reduced rows to avoid rounding issues
+            for col in range(0, reduced_cols*scale, scale):
                 # Extract the scalexscale region
                 region = image[row:row+scale, col:col+scale]
                 # Calculate the ratio of pixels equal to zero in the region
                 ratio = np.sum(region == 0) / region_area
 
                 # Populate the corresponding pixel in the coverage image
-                reduced_row = row // scale
-                reduced_col = col // scale
+                reduced_row = int(row / scale)
+                reduced_col = int(col / scale)
                 coverage_map[reduced_row, reduced_col] = int(ratio * 100)
 
         return coverage_map
@@ -237,7 +244,8 @@ class KelpCoverageEstimator():
         date = date[4:6] + '-' + date[0:4]
         date = datetime.strptime(date, "%m-%Y")
         date = date.strftime("%B %Y") # Format the datetime object as "Month Year"
-
+        # date = '2023-12-28'
+        
         # Get total biomass
         total_biomass = self.get_total_biomass_from_coverage_map(image_array)
 
