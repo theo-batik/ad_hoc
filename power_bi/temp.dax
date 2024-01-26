@@ -1,0 +1,38 @@
+let
+    Source = SharePoint.Files("https://kelpblue.sharepoint.com/sites/DataManagement-Admin/", [ApiVersion = 15]),
+    
+    // Filter for .xlsx Files
+    Tables = Table.SelectRows(Source, each Text.EndsWith([Name], ".xlsx") and [Name] = "Marine Monitoring.xlsx"),
+
+    // Function to Load XLSX File with Dynamic Headers
+    LoadXlsxFile = (fileRecord as record) =>
+        let
+            // Load Excel Workbook
+            ExcelTable = Excel.Workbook(fileRecord[Content]),
+            
+            // Assuming there's a single sheet, you can reference it like this:
+            // Adjust the sheet name as needed
+            FirstSheet = ExcelTable{[Item="Form1"]}[Data],
+            
+            // Use the first row as column headers
+            Headers = Table.PromoteHeaders(FirstSheet, [PromoteAllScalars=true])
+        in
+            Headers,
+
+    // Filter for the specific XLSX file (Biosystems.xlsx)
+    MarineMonitoringTable = Table.SelectRows(Tables, each [Name] = "Marine Monitoring.xlsx"),
+
+    // Invoke Function for the Specific XLSX File
+    LoadedTable = if Table.RowCount(MarineMonitoringTable) > 0 then LoadXlsxFile(MarineMonitoringTable{0}) else null,
+    #"Removed Columns" = Table.RemoveColumns(LoadedTable,{"ID", "Begintijd", "Tijd van voltooien", "E-mail", "Naam", "Tijd van laatste wijziging"}),
+    #"Changed Type" = Table.TransformColumnTypes(#"Removed Columns",{{"Number of incidents this week", Int64.Type}, {"Number of interventions and near misses this week", Int64.Type}, {"Number of dives per week", Int64.Type}, {"Number of successful dives per week", Int64.Type}, {"Total species identified to date (all techniques)", type number}, {"Lead time from sampling to processing and return", Int64.Type}, {"Date of submission", type date}}),
+    #"Replaced Value" = Table.ReplaceValue(#"Changed Type","Yes","1",Replacer.ReplaceText,{"Water quality analysis done and output reports updated", "Weekly completion of drone run, analysis & output done", "Weekly completion of WASSP run, analysis & output done", "Water quality measurements on track for carbon methodology", "Monitoring inline with spatial and temporal resolution requirements", "Required eDNA samples taken from target sites this month", "eDNA samples from past month processed and returned", "eDNA output graphs updated"}),
+    #"Replaced Value1" = Table.ReplaceValue(#"Replaced Value","No","0",Replacer.ReplaceText,{"Water quality analysis done and output reports updated", "Weekly completion of drone run, analysis & output done", "Weekly completion of WASSP run, analysis & output done", "Water quality measurements on track for carbon methodology", "Monitoring inline with spatial and temporal resolution requirements", "Required eDNA samples taken from target sites this month", "eDNA samples from past month processed and returned", "eDNA output graphs updated"}),
+    #"Replaced Value2" = Table.ReplaceValue(#"Replaced Value1",null,"0",Replacer.ReplaceValue,{"Water quality analysis done and output reports updated", "Weekly completion of drone run, analysis & output done", "Weekly completion of WASSP run, analysis & output done", "Water quality measurements on track for carbon methodology", "Monitoring inline with spatial and temporal resolution requirements", "Required eDNA samples taken from target sites this month", "eDNA samples from past month processed and returned", "eDNA output graphs updated"}),
+    #"Changed Type1" = Table.TransformColumnTypes(#"Replaced Value2",{{"Water quality analysis done and output reports updated", Int64.Type}, {"Weekly completion of drone run, analysis & output done", Int64.Type}, {"Weekly completion of WASSP run, analysis & output done", Int64.Type}, {"Water quality measurements on track for carbon methodology", Int64.Type}, {"Monitoring inline with spatial and temporal resolution requirements", Int64.Type}, {"Required eDNA samples taken from target sites this month", Int64.Type}, {"eDNA samples from past month processed and returned", Int64.Type}, {"eDNA output graphs updated", Int64.Type}}),
+    #"Replaced Value3" = Table.ReplaceValue(#"Changed Type1","Yes","1",Replacer.ReplaceText,{"Required water quality samples taken from target sites this week"}),
+    #"Replaced Value4" = Table.ReplaceValue(#"Replaced Value3","No","0",Replacer.ReplaceText,{"Required water quality samples taken from target sites this week"}),
+    #"Replaced Value5" = Table.ReplaceValue(#"Replaced Value4",null,"0",Replacer.ReplaceValue,{"Required water quality samples taken from target sites this week"}),
+    #"Changed Type2" = Table.TransformColumnTypes(#"Replaced Value5",{{"Required water quality samples taken from target sites this week", Int64.Type}})
+in
+    #"Changed Type2"

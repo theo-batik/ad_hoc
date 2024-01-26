@@ -1,0 +1,30 @@
+let
+    Source = SharePoint.Files("https://kelpblue.sharepoint.com/sites/DataManagement-Admin/", [ApiVersion = 15]),
+    
+    // Filter for .xlsx Files
+    Tables = Table.SelectRows(Source, each Text.EndsWith([Name], ".xlsx") and [Name] = "Processing.xlsx"),
+
+    // Function to Load XLSX File with Dynamic Headers
+    LoadXlsxFile = (fileRecord as record) =>
+        let
+            // Load Excel Workbook
+            ExcelTable = Excel.Workbook(fileRecord[Content]),
+            
+            // Assuming there's a single sheet, you can reference it like this:
+            // Adjust the sheet name as needed
+            FirstSheet = ExcelTable{[Item="Form1"]}[Data],
+            
+            // Use the first row as column headers
+            Headers = Table.PromoteHeaders(FirstSheet, [PromoteAllScalars=true])
+        in
+            Headers,
+
+    // Filter for the specific XLSX file (Biosystems.xlsx)
+    ProcessingTable = Table.SelectRows(Tables, each [Name] = "Processing.xlsx"),
+
+    // Invoke Function for the Specific XLSX File
+    LoadedTable = if Table.RowCount(ProcessingTable) > 0 then LoadXlsxFile(ProcessingTable{0}) else null
+    
+in
+    LoadedTable
+

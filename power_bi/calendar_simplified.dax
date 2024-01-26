@@ -1,0 +1,17 @@
+let
+    // Parameters
+    StartDate = #date(2022, 1, 1),
+    CurrentDate = Date.From(DateTime.Date(DateTime.FixedLocalNow())),
+    
+    // Date column
+    ListDates = List.Dates(StartDate, Number.From(CurrentDate - StartDate) + 1, #duration(1, 0, 0, 0)),
+    Dates = Table.FromList(ListDates, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+    RenamedColumns = Table.RenameColumns(Dates, {{"Column1", "Date"}}),
+
+    // Add a new column "week_offset" based on calendar days relative to the current date
+    WeekOffset = Table.AddColumn(RenamedColumns, "week_offset", each Duration.From([Date] - CurrentDate) / #duration(1, 0, 0, 0), Int64.Type),
+
+    // Transform data
+    #"Sorted Rows" = Table.Sort(WeekOffset,{{"Date", Order.Descending}})
+in
+    #"Sorted Rows"
