@@ -90,7 +90,7 @@ class KelpCoverageEstimator():
         return image
 
 
-    def produce_coverage_map(self, image):
+    def produce_coverage_map(self, image, scale=scale):
         ''' 
         Input: 
             Binary image
@@ -319,7 +319,7 @@ class KelpCoverageEstimator():
 
         # Total area of image
         total_area = ( pixel_length * grid_block_meters_length) * (pixel_width * grid_block_meters_length)
-        print('\tTotal area:', round(total_area, 0), 'm^2')
+        print('\tTotal area:', round(total_area/10000, 0), 'Ha')
 
         # Total biomass
         total_biomass = total_effective_harvest_efficiency * total_area
