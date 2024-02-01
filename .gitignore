@@ -7,3 +7,5 @@
 Pipfile
 Pipfile.lock
 __pycache__
+*.Identifier
+*.xlsx
