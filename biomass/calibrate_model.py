@@ -1,23 +1,17 @@
 # ------------------------------------------------------------------------------
 
 # Imports
-
-import utils
+import utils as u
 import pandas as pd
-from os import getenv
 
-# ------------------------------------------------------------------------------
-
-# Controls
+# Controls & parameters
 display = True
-
-# Load environment variables
-IMAGE_SENSOR_WIDTH = float(getenv("IMAGE_SENSOR_WIDTH"))
-CAMERA_FOCAL_LENGTH = float(getenv("CAMERA_FOCAL_LENGTH"))
+image_format = '.JPG'
 
 # Paths
 path_to_calibration = 'calibration/input/data/calibration_2024_02_01.csv'
 path_to_images = 'calibration/input/images/'
+path_out = 'calibration/output/'
 
 # ------------------------------------------------------------------------------
 
@@ -30,41 +24,64 @@ if display:
 
 # ------------------------------------------------------------------------------
 
-drone_images_before = df['image_before_name'].values
-print( type(drone_images_before ))
-# Compute meter-to-pixel ratio for each raw drone image -> before
-    # Extract metadata
-        # Altitude
-    # Compute the meters_per_pixel ratio, r
-    # Insert r into column
 
-for image_before, image_after in zip( df['image_before_name'].values, df['image_after_name'].values):
-    print( image_before, image_after)
+if display:
+    print('\nPROCESSING IMAGES:')
 
+for i, (image_before, image_after) in enumerate(zip( df['image_before_name'].values, df['image_after_name'].values)):
     
+    if display:
+        print('\t', i, '->  Before,', image_before, '| After,', image_after)
+    
+    # Set paths to raw images
+    path_to_image_before = path_to_images + image_before
+    path_to_image_after =  path_to_images + image_after
+
+    # Compute meters_per_pixel ratio -> before
+    metadata_before = u.get_metadata(path_to_image_before + image_format)
+    metadata_before = u.refine_metadata(metadata_before)
+    meters_per_pixel_before = u.compute_meters_per_pixel(metadata_before)
+    df.at[i, 'Meters_per_pixel_before'] = meters_per_pixel_before
+
+    if display:
+        print('\t   ->  Meters-per-pixel ratios')
+
+    # Compute meters_per_pixel ratio -> after
+    metadata_after = u.get_metadata(path_to_image_after + image_format)
+    metadata_after = u.refine_metadata(metadata_after)
+    meters_per_pixel_after = u.compute_meters_per_pixel(metadata_after)
+    df.at[i, 'meters_per_pixel_after'] = meters_per_pixel_after
+
+    # Compute canopy area before
+    path_to_binary_cropped_image_before = path_to_image_before + '_binary_cropped' + image_format.lower()
+    canopy_area_before = u.compute_canopy_area(path_to_binary_cropped_image_before, meters_per_pixel_before)
+    df.at[i, 'canopy_area_before'] = canopy_area_before
+
+    # Compute canopy area after
+    path_to_binary_cropped_image_after = path_to_image_after + '_binary_cropped' + image_format.lower()
+    canopy_area_after = u.compute_canopy_area(path_to_binary_cropped_image_after, meters_per_pixel_after)
+    df.at[i, 'canopy_area_after'] = canopy_area_after
+
+    if display:
+        print('\t   ->  Canopy areas')
+
+    # Compute canopy area harvested, as difference between canopy areas (i.e. not plot area)
+    canopy_area_harvested = canopy_area_before - canopy_area_after
+    df.at[i, 'canopy_area_harvested'] = canopy_area_harvested
+
+    if display:
+        print(f'\t   ->  Canopy area harvested: {int(canopy_area_harvested)} (m^2)')
+
+    # Compute the biomass density of the area harvested (i.e. "harvest efficiency")
+    biomass_density = df.at[i, 'biomass_measured'] / canopy_area_harvested
+    df.at[i, 'biomass_density'] = biomass_density
+    
+    if display:
+        print(f'\t   ->  biomass density: {round(biomass_density, 1)} (kg/m^2)')
+
+    break
 
 
-# ------------------------------------------------------------------------------
-
-# Compute canopy area for each cropped binary image
-    # canopy_area = SUM( black pixels ) * (r**2)
-
-# ------------------------------------------------------------------------------
-
-# Compute difference in area (i.e. estimate of canopy area harvested) for each before/after pair
-    # Delta_A = A_before - A_after ~ area_harvested
-
-
-# ------------------------------------------------------------------------------
-
-# Compute the biomass density of the area harvested (i.e. "harvested efficiency")
-    # biomass_density = biomass_measured / area_harvested
-
-# ------------------------------------------------------------------------------
-
-# Calculate the average canopy biomass density (harvest efficiency)
-
-# ------------------------------------------------------------------------------
 
 # Output results:
     # Write fully populated calibration file to .csv (with timestamped name)
