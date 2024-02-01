@@ -1,6 +1,8 @@
 *.csv
 *.png
+*.PNG
 *.jpg
+*.JPG
 *.jpeg
 Pipfile
 Pipfile.lock
