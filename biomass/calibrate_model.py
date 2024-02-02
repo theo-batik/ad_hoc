@@ -9,7 +9,7 @@ display = True
 image_format = '.JPG'
 
 # Paths
-path_to_calibration = 'calibration/input/data/calibration_2024_02_01.csv'
+path_to_calibration = 'calibration/input/data/calibration_input_2024-02-02.csv'
 path_to_images = 'calibration/input/images/'
 output_path = 'calibration/output/'
 
@@ -85,9 +85,41 @@ for i, (image_before, image_after) in enumerate(zip( df['image_before_name'].val
 # ------------------------------------------------------------------------------
 
 # Output results:
-    # Write fully populated calibration file to .csv (with timestamped name)
-    # Write average canopy biomass density to .csv alongside timestamp
 
+
+# Write fully populated calibration file to .csv (with timestamped name)
 now = u.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 output_file = output_path + 'calibration_output_' + now + '.csv'
 df.to_csv(output_file, index=True)
+
+
+# Write average canopy biomass density to .csv alongside timestamp
+biomass_density = df['biomass_density']
+
+# Plot the results
+import matplotlib.pyplot as plt
+
+# Plot the histogram
+plt.hist(biomass_density, bins=16, alpha=0.7, color='blue', edgecolor='black')
+
+# Calculate mean and standard deviation
+mean_value = biomass_density.mean()
+std_dev = biomass_density.std()
+print(mean_value)
+print(std_dev)
+
+# Plot a vertical line for the mean
+plt.axvline(mean_value, color='red', linestyle='dashed', linewidth=2, label='Mean')
+
+# Plot vertical lines for standard deviations
+plt.axvline(mean_value + std_dev, color='orange', linestyle='dashed', linewidth=2, label='Mean + 1 Std')
+plt.axvline(mean_value - std_dev, color='orange', linestyle='dashed', linewidth=2, label='Mean - 1 Std')
+
+# Add labels and legend
+plt.xlabel('Harvest efficiency (i.e. biomass density)')
+plt.ylabel('Frequency')
+plt.title('Harvest efficiencies based on estimtaed kelp canopy area and measured biomass')
+plt.legend()
+
+# Show the plot
+plt.show()
