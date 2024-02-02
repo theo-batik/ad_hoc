@@ -11,9 +11,7 @@ image_format = '.JPG'
 # Paths
 path_to_calibration = 'calibration/input/data/calibration_2024_02_01.csv'
 path_to_images = 'calibration/input/images/'
-path_out = 'calibration/output/'
-
-# ------------------------------------------------------------------------------
+output_path = 'calibration/output/'
 
 # Load data into pandas dataframe
 df = pd.read_csv(path_to_calibration)
@@ -24,12 +22,15 @@ if display:
 
 # ------------------------------------------------------------------------------
 
-
 if display:
     print('\nPROCESSING IMAGES:')
 
 for i, (image_before, image_after) in enumerate(zip( df['image_before_name'].values, df['image_after_name'].values)):
     
+    # Check for match
+    if not df.at[i, 'match']:
+        continue
+
     if display:
         print('\t', i, '->  Before,', image_before, '| After,', image_after)
     
@@ -41,16 +42,16 @@ for i, (image_before, image_after) in enumerate(zip( df['image_before_name'].val
     metadata_before = u.get_metadata(path_to_image_before + image_format)
     metadata_before = u.refine_metadata(metadata_before)
     meters_per_pixel_before = u.compute_meters_per_pixel(metadata_before)
-    df.at[i, 'Meters_per_pixel_before'] = meters_per_pixel_before
-
-    if display:
-        print('\t   ->  Meters-per-pixel ratios')
+    df.at[i, 'meters_per_pixel_before'] = meters_per_pixel_before
 
     # Compute meters_per_pixel ratio -> after
     metadata_after = u.get_metadata(path_to_image_after + image_format)
     metadata_after = u.refine_metadata(metadata_after)
     meters_per_pixel_after = u.compute_meters_per_pixel(metadata_after)
     df.at[i, 'meters_per_pixel_after'] = meters_per_pixel_after
+
+    if display:
+        print(f'\t   ->  Meters-per-pixel ratios: {round(meters_per_pixel_before, 3)}, {round(meters_per_pixel_after, 3)}')
 
     # Compute canopy area before
     path_to_binary_cropped_image_before = path_to_image_before + '_binary_cropped' + image_format.lower()
@@ -79,10 +80,14 @@ for i, (image_before, image_after) in enumerate(zip( df['image_before_name'].val
     if display:
         print(f'\t   ->  biomass density: {round(biomass_density, 1)} (kg/m^2)')
 
-    break
 
 
+# ------------------------------------------------------------------------------
 
 # Output results:
     # Write fully populated calibration file to .csv (with timestamped name)
     # Write average canopy biomass density to .csv alongside timestamp
+
+now = u.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+output_file = output_path + 'calibration_output_' + now + '.csv'
+df.to_csv(output_file, index=True)
