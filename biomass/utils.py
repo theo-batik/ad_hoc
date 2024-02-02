@@ -1,7 +1,20 @@
 ################################################################################################################
 
+from PIL import Image
+from PIL.ExifTags import TAGS, GPSTAGS
+from datetime import datetime
+from os import getenv
+import numpy as np
+
+################################################################################################################
+
+# Load environment variables
+IMAGE_SENSOR_WIDTH = float(getenv("IMAGE_SENSOR_WIDTH"))
+CAMERA_FOCAL_LENGTH = float(getenv("CAMERA_FOCAL_LENGTH"))
+
+################################################################################################################
+
 # Metadata and meters-per-pixel calculation
-# Temp note, try use imageJ to extract metadata...
 
 def get_gps_data(exif_data):
     gps_info = {}
@@ -10,7 +23,6 @@ def get_gps_data(exif_data):
             for key, val in value.items():
                 if GPSTAGS.get(key):
                     gps_info[GPSTAGS[key]] = val
-
     return gps_info
 
 
@@ -81,3 +93,9 @@ def compute_meters_per_pixel(metadata):
     meters_per_pixel = (IMAGE_SENSOR_WIDTH * altitude) / (CAMERA_FOCAL_LENGTH * image_width)
 
     return meters_per_pixel
+
+
+def compute_canopy_area(path_to_binary_image, meters_per_pixel):
+    image_array = np.array(Image.open(path_to_binary_image))
+    canopy_area = np.sum(image_array == 0) * (meters_per_pixel**2) # sum(black pixel)*(pixel area)
+    return canopy_area
