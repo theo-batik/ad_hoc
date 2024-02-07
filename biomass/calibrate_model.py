@@ -74,52 +74,55 @@ for i, (image_before, image_after) in enumerate(zip( df['image_before_name'].val
         print(f'\t   ->  Canopy area harvested: {int(canopy_area_harvested)} (m^2)')
 
     # Compute the biomass density of the area harvested (i.e. "harvest efficiency")
-    biomass_density = df.at[i, 'biomass_measured'] / canopy_area_harvested
-    df.at[i, 'biomass_density'] = biomass_density
+    biomass_density_semi_predicted = df.at[i, 'biomass_measured'] / canopy_area_harvested
+    df.at[i, 'biomass_density_semi_predicted'] = biomass_density_semi_predicted
     
     if display:
-        print(f'\t   ->  biomass density: {round(biomass_density, 1)} (kg/m^2)')
-
+        print(f'\t   ->  biomass density semi-measured: {round(biomass_density_semi_predicted, 1)} (kg/m^2)')
 
 
 # ------------------------------------------------------------------------------
 
 # Output results:
 
-
 # Write fully populated calibration file to .csv (with timestamped name)
 now = u.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+df['calibration_datetime'] = now
 output_file = output_path + 'calibration_output_' + now + '.csv'
 df.to_csv(output_file, index=True)
 
+# Calculate mean and standard deviation
+biomass_density = df['biomass_density_semi_predicted']
+average_biomass_density_p = biomass_density.mean()
+biomass_density_predicted_std = biomass_density.std()
 
 # Write average canopy biomass density to .csv alongside timestamp
-biomass_density = df['biomass_density']
+# ?
 
-# Plot the results
-import matplotlib.pyplot as plt
+# Plot histogram of calibration results
+if display:
+    print('\nCALIBRATION RESULTS:')
+    print('\t   ->  Average biomass density predicted', round(average_biomass_density_p, 2), '(kg/m^2)') 
+    print('\t   ->  Standard deviation', round(biomass_density_predicted_std, 2), '(kg/m^2)')
 
-# Plot the histogram
-plt.hist(biomass_density, bins=16, alpha=0.7, color='blue', edgecolor='black')
+    # Plot the results
+    import matplotlib.pyplot as plt
 
-# Calculate mean and standard deviation
-mean_value = biomass_density.mean()
-std_dev = biomass_density.std()
-print(mean_value)
-print(std_dev)
+    # Plot the histogram
+    plt.hist(biomass_density, bins=16, alpha=0.7, color='blue', edgecolor='black')
 
-# Plot a vertical line for the mean
-plt.axvline(mean_value, color='red', linestyle='dashed', linewidth=2, label='Mean')
+    # Plot a vertical line for the mean
+    plt.axvline(average_biomass_density_p, color='red', linestyle='dashed', linewidth=2, label='Mean')
 
-# Plot vertical lines for standard deviations
-plt.axvline(mean_value + std_dev, color='orange', linestyle='dashed', linewidth=2, label='Mean + 1 Std')
-plt.axvline(mean_value - std_dev, color='orange', linestyle='dashed', linewidth=2, label='Mean - 1 Std')
+    # Plot vertical lines for standard deviations
+    plt.axvline(average_biomass_density_p + biomass_density_predicted_std, color='orange', linestyle='dashed', linewidth=2, label='Mean + 1 Std')
+    plt.axvline(average_biomass_density_p - biomass_density_predicted_std, color='orange', linestyle='dashed', linewidth=2, label='Mean - 1 Std')
 
-# Add labels and legend
-plt.xlabel('Harvest efficiency (i.e. biomass density)')
-plt.ylabel('Frequency')
-plt.title('Harvest efficiencies based on estimtaed kelp canopy area and measured biomass')
-plt.legend()
+    # Add labels and legend
+    plt.xlabel('Harvest efficiency (i.e. biomass density)')
+    plt.ylabel('Frequency')
+    plt.title('Harvest efficiencies based on estimtaed kelp canopy area and measured biomass')
+    plt.legend()
 
-# Show the plot
-plt.show()
+    # Show the plot
+    # plt.show()
