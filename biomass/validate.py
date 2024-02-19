@@ -9,7 +9,7 @@ import pandas as pd
 display = True
 
 # Paths
-path_to_calibration_output = 'calibration/output/calibration_output_2024-02-07 12:53:29.csv'
+path_to_calibration_output = 'calibration/output/calibration_output_2024-02-14 16:27:53.csv'
 output_path = 'validation/output/'
 
 # Load data into pandas dataframe
@@ -33,6 +33,10 @@ df['biomass_difference'] = df['biomass_predicted'] - df['biomass_measured']
 biomass_MAE = df['biomass_difference'].abs().mean()
 biomass_density_MAE = df['biomass_density_difference'].abs().mean()
 
+# Compute accuracy
+biomass_density_accuracy = 1 - biomass_density_MAE/harvest_efficiency_mean
+df['biomass_density_accuracy'] = biomass_density_accuracy
+
 # Fetch calibration datetime and sample size
 calibration_datetime = df['calibration_datetime'].iloc[0]
 sample_size = (df['match'] == 1).sum()
@@ -47,6 +51,7 @@ if display:
     print(f'Harvest efficiency std (semi-predicted): {harvest_efficiency_std}')
     print(f'Biomass MAE: {round(biomass_MAE, 2)}')
     print(f'Biomass density MAE: {round(biomass_density_MAE, 2)}')
+    print(f'Accuracy (biomass density): {int(biomass_density_accuracy*100)}%')
     print(f'Sample size: {sample_size}')
 
 # Create dateframe for validation output 
@@ -56,6 +61,7 @@ validation_output_data = {
     'harvest_efficiency_std': [harvest_efficiency_std],
     'biomass_MAE': [biomass_MAE],
     'biomass_density_MAE': [biomass_density_MAE],
+    'biomass_density_accuracy': [biomass_density_accuracy],
     'sample_size': [sample_size]
 }
 df_validation = pd.DataFrame(validation_output_data)
