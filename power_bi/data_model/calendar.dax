@@ -1,0 +1,33 @@
+let
+    // Parameters
+    StartDate = #date(2022, 1, 1),
+    CurrentDate = Date.From(DateTime.Date(DateTime.FixedLocalNow())),
+    
+    // Date column
+    ListDates = List.Dates(StartDate, Number.From(CurrentDate - StartDate) + 1, #duration(1, 0, 0, 0)),
+    DateTable = Table.FromList(ListDates, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+    RenamedTable = Table.RenameColumns(DateTable,{{"Column1", "Date"}}),
+    TypeToDate = Table.TransformColumnTypes(RenamedTable,{{"Date", type date}}),
+    
+    // Week
+    week_day_number = Table.AddColumn(TypeToDate, "week_day_number", each Date.DayOfWeek([Date], Day.Monday) + 1, Int64.Type),
+    week_day_name = Table.AddColumn(week_day_number, "week_day_name", each Text.Start(Date.DayOfWeekName([Date]),3), type text),
+    
+    // Month columns
+    month_number = Table.AddColumn(week_day_name, "month_number", each Date.Month([Date]), Int64.Type),
+    month_name = Table.AddColumn(month_number, "month_name", each Text.Start(Date.MonthName([Date]),3), type text),
+    month_name_long = Table.AddColumn(month_name, "month_name_long", each Date.MonthName([Date]), type text),
+
+    // Quarter 
+    quarter_number = Table.AddColumn(month_name_long, "quarter_number", each Date.QuarterOfYear([Date]), Int64.Type),
+    quarter = Table.AddColumn(quarter_number, "quarter", each "Q" & Text.From(Date.QuarterOfYear([Date]))),
+
+
+    // Year
+    year = Table.AddColumn(quarter, "year", each Date.Year([Date]), Int64.Type),
+    current_year = Table.AddColumn(year, "current_year", each if Date.Year([Date]) = Date.Year(Date.AddDays(CurrentDate,-0)) then "TRUE" else "FALSE"),
+    #"Changed Type" = Table.TransformColumnTypes(current_year,{{"quarter", type text}, {"current_year", type logical}}),
+    #"Renamed Columns" = Table.RenameColumns(#"Changed Type",{{"Date", "date"}})
+
+in
+    #"Renamed Columns"
