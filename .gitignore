@@ -4,8 +4,7 @@
 *.jpg
 *.JPG
 *.jpeg
-Pipfile
-Pipfile.lock
 __pycache__
 *.Identifier
 *.xlsx
+*.json

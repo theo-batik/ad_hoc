@@ -36,6 +36,10 @@ geopandas = "*"
 shapely = "*"
 beautifulsoup4 = "*"
 selenium = "*"
+torch = "*"
+torchvision = "*"
+torchaudio = "*"
+pytorch = "*"
 
 [dev-packages]
 
